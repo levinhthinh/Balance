@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Balance{% endblock %}
+{% block body %}
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Balance</h1>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Log out</button>
+      </form>
+    </div>
+
+    <button class="btn btn-secondary btn-block" data-open-modal="modal-new-account">+ New account</button>
+
+    <nav class="account-list">
+      {% for acc in accounts %}
+        <a class="account-item {% if selected_account and acc.id == selected_account.id %}active{% endif %}"
+           href="{% url 'account_detail' acc.id %}">
+          <span class="account-item-title">{{ acc.title }}</span>
+          <span class="account-item-balance {% if acc.amount < 0 %}negative{% endif %}">{{ acc.amount }}</span>
+        </a>
+      {% empty %}
+        <p class="empty-hint">No accounts yet. Create your first one above.</p>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <main class="main">
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if selected_account %}
+      <div class="main-header">
+        <div>
+          <h2>{{ selected_account.title }}</h2>
+          <span class="tag">{{ selected_account.get_account_type_display }}</span>
+        </div>
+        <div class="balance-display {% if selected_account.amount < 0 %}negative{% endif %}">
+          {{ selected_account.amount }}
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" data-open-modal="modal-transaction">Make transaction</button>
+        <button class="btn btn-secondary" data-open-modal="modal-goal">+ New goal</button>
+      </div>
+
+      {% if goals %}
+      <section class="goals">
+        <h3>Goals</h3>
+        <div class="goal-grid">
+          {% for goal in goals %}
+            <div class="goal-card">
+              <div class="goal-card-head">
+                <strong>{{ goal.title }}</strong>
+                <span class="tag">{{ goal.get_goal_type_display }}</span>
+              </div>
+              <p class="goal-meta">~{{ goal.months }} month{{ goal.months|pluralize }}</p>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ goal.percent }}%"></div>
+              </div>
+              <p class="goal-meta">{{ goal.current_amount }} / {{ goal.amount }} &middot; {{ goal.percent }}%</p>
+              {% if goal.description %}<p class="goal-desc">{{ goal.description }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="transactions">
+        <h3>Transactions</h3>
+        {% if transactions %}
+          <table class="tx-table">
+            <thead>
+              <tr><th>Date</th><th>Title</th><th>Type</th><th>Description</th><th class="amount-col">Amount</th></tr>
+            </thead>
+            <tbody>
+              {% for tx in transactions %}
+                <tr>
+                  <td>{{ tx.created_at|date:"Y-m-d H:i" }}</td>
+                  <td>{{ tx.title }}</td>
+                  <td>{{ tx.get_kind_display }}</td>
+                  <td>{{ tx.description }}</td>
+                  <td class="amount-col {% if tx.amount < 0 %}negative{% else %}positive{% endif %}">
+                    {% if tx.amount > 0 %}+{% endif %}{{ tx.amount }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="empty-hint">No transactions yet for this account.</p>
+        {% endif %}
+      </section>
+    {% else %}
+      <div class="empty-state">
+        <h2>Welcome to Balance</h2>
+        <p>Create your first account to start tracking your money.</p>
+      </div>
+    {% endif %}
+  </main>
+</div>
+
+<!-- New account modal -->
+<div class="modal-overlay" id="modal-new-account">
+  <div class="modal">
+    <div class="modal-head"><h3>New account</h3><button class="close-btn" data-close-modal>&times;</button></div>
+    <form method="post" action="{% url 'create_account' %}">
+      {% csrf_token %}
+      {{ account_form.title.label_tag }} {{ account_form.title }}
+      {{ account_form.account_type.label_tag }} {{ account_form.account_type }}
+      <button type="submit" class="btn btn-primary btn-block">Create account</button>
+    </form>
+  </div>
+</div>
+
+{% if selected_account %}
+<!-- Make transaction modal -->
+<div class="modal-overlay" id="modal-transaction">
+  <div class="modal">
+    <div class="modal-head"><h3>Make transaction</h3><button class="close-btn" data-close-modal>&times;</button></div>
+    <div class="tabs">
+      <button type="button" class="tab-btn active" data-tab="tab-deposit-withdraw">Add / Take away</button>
+      <button type="button" class="tab-btn" data-tab="tab-transfer">Transfer</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-deposit-withdraw">
+      <form method="post" action="{% url 'make_transaction' selected_account.id %}">
+        {% csrf_token %}
+        <div class="radio-row">
+          {% for radio in transaction_form.action %}
+            <label class="radio-option">{{ radio.tag }} {{ radio.choice_label }}</label>
+          {% endfor %}
+        </div>
+        {{ transaction_form.title.label_tag }} {{ transaction_form.title }}
+        {{ transaction_form.amount.label_tag }} {{ transaction_form.amount }}
+        {{ transaction_form.description.label_tag }} {{ transaction_form.description }}
+        <button type="submit" class="btn btn-primary btn-block">Submit</button>
+      </form>
+    </div>
+
+    <div class="tab-panel" id="tab-transfer">
+      <form method="post" action="{% url 'make_transfer' selected_account.id %}">
+        {% csrf_token %}
+        {{ transfer_form.to_account.label_tag }} {{ transfer_form.to_account }}
+        {{ transfer_form.title.label_tag }} {{ transfer_form.title }}
+        {{ transfer_form.amount.label_tag }} {{ transfer_form.amount }}
+        {{ transfer_form.description.label_tag }} {{ transfer_form.description }}
+        <button type="submit" class="btn btn-primary btn-block">Transfer</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- New goal modal -->
+<div class="modal-overlay" id="modal-goal">
+  <div class="modal">
+    <div class="modal-head"><h3>New goal for {{ selected_account.title }}</h3><button class="close-btn" data-close-modal>&times;</button></div>
+    <form method="post" action="{% url 'create_goal' selected_account.id %}">
+      {% csrf_token %}
+      {{ goal_form.title.label_tag }} {{ goal_form.title }}
+      {{ goal_form.goal_type.label_tag }} {{ goal_form.goal_type }}
+      {{ goal_form.amount.label_tag }} {{ goal_form.amount }}
+      {{ goal_form.months.label_tag }} {{ goal_form.months }}
+      {{ goal_form.description.label_tag }} {{ goal_form.description }}
+      <button type="submit" class="btn btn-primary btn-block">Create goal</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

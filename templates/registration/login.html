@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Log in - Balance{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="auth-card">
+    <h1>Balance</h1>
+    <p class="auth-sub">Log in to track your accounts.</p>
+    {% if form.errors %}
+      <div class="alert alert-error">Your username or password was incorrect.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label for="id_username">Username</label>
+      {{ form.username }}
+      <label for="id_password">Password</label>
+      {{ form.password }}
+      <button type="submit" class="btn btn-primary btn-block">Log in</button>
+    </form>
+    <p class="auth-switch">No account yet? <a href="{% url 'signup' %}">Sign up</a></p>
+  </div>
+</div>
+{% endblock %}
